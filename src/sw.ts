@@ -1,3 +1,11 @@
+importScripts(`/static/wasm/lib.js`);
+
+WebAssembly.compileStreaming(fetch(`/static/wasm/lib.wasm`)).then((mod) =>
+  WebAssembly.instantiate(mod, { imports: {} }).then((instance) => {
+    self.wasm = instance.exports;
+  })
+);
+
 self.addEventListener("install", (event) => {
   console.log("installing");
 });
@@ -5,9 +13,6 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   console.log("activating");
 });
-
-const finish = () => {};
-const decrypt = (v) => {};
 
 self.addEventListener("fetch", function (event: any) {
   event.respondWith(

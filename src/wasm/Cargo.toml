@@ -1,0 +1,16 @@
+[package]
+name = "viewer-crypto"
+version = "0.1.0"
+authors = ["Bryan Huang<bryan.huang@autodesk.com>"]
+description = "A sample project to protect and load encrypted derivatives on Autodesk Forge Viewer with WebAssembly and stream ciphers"
+license = "MIT"
+repository = "https://github.com/dukedhx/viewer-cryptography"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+aes-ctr = "0.3.0"
+lazy_static = "1.4.0"
+hex = "0.4.0"
