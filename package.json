@@ -23,6 +23,7 @@
     "@babylonjs/loaders": "^4.2.1",
     "babel-loader": "^8.2.3",
     "copy-webpack-plugin": "^10.2.2",
+    "core-js": "^3.20.3",
     "express": "^4.17.2",
     "html-webpack-plugin": "^5.5.0",
     "webpack": "^5.67.0",
