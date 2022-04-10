@@ -30,6 +30,8 @@ function App() {
 
   useEffect(() => {
     if (canvasRef.current) {
+      canvasRef.current.width = canvasRef.current.parentElement!.clientWidth;
+      canvasRef.current.height = canvasRef.current.parentElement!.clientHeight;
       start(canvasRef.current);
     }
   }, []);
@@ -40,7 +42,7 @@ function App() {
         <button onClick={upload}>上传</button>
       </div>
       <div>
-        <canvas ref={canvasRef}></canvas>
+        <canvas style={{ width: "100%", height: "100%" }} ref={canvasRef}></canvas>
       </div>
     </div>
   );
