@@ -21,7 +21,7 @@ export function start(canvas: HTMLCanvasElement) {
   const scene = new Scene(engine);
   scene.createDefaultCameraOrLight(true, true, true);
 
-  SceneLoader.AppendAsync("/public/models/", "Xbot.glb").then((scene) => {});
+  SceneLoader.AppendAsync("/models/", "Xbot.glb").then((scene) => {});
 
   function render() {
     engine.runRenderLoop(() => {

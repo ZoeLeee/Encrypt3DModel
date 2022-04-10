@@ -43,6 +43,5 @@ func Upload(basePath string, c *gin.Context, msg string) {
 		}
 
 	}
-
 	c.String(http.StatusOK, msg)
 }

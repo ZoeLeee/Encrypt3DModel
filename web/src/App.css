@@ -1,5 +1,14 @@
 .App {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.App>div:first-child{
+  height: 50px;
+}
+.App>div:last-child{
+  flex:1;
 }
 
 .App-logo {
