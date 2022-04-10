@@ -1,5 +1,12 @@
-import { Scene, Engine, SceneLoader } from "@babylonjs/core";
+import {
+  Scene,
+  Engine,
+  SceneLoader,
+  ArcRotateCamera,
+  FramingBehavior,
+} from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
+import "@babylonjs/loaders/obj";
 
 // if ("serviceWorker" in navigator) {
 //   navigator.serviceWorker
@@ -14,6 +21,34 @@ import "@babylonjs/loaders/glTF";
 //     });
 // }
 
+function zoomAll(scene: Scene) {
+  const camera = scene.activeCamera! as ArcRotateCamera;
+
+  // Enable camera's behaviors
+  camera.useFramingBehavior = true;
+
+  var framingBehavior = camera.getBehaviorByName("Framing") as FramingBehavior;
+  framingBehavior.framingTime = 0;
+  framingBehavior.elevationReturnTime = 0;
+
+  if (scene.meshes.length) {
+    camera.lowerRadiusLimit = null;
+
+    var worldExtends = scene.getWorldExtends(function (mesh) {
+      return mesh.isVisible && mesh.isEnabled();
+    });
+    framingBehavior.zoomOnBoundingInfo(worldExtends.min, worldExtends.max);
+  }
+
+  //   camera.useAutoRotationBehavior = true;
+
+  //   camera.pinchPrecision = 200 / camera.radius;
+  //   camera.upperRadiusLimit = 5 * camera.radius;
+
+  camera.wheelDeltaPercentage = 0.01;
+  camera.pinchDeltaPercentage = 0.01;
+}
+
 export function start(canvas: HTMLCanvasElement) {
   const engine = new Engine(canvas);
   engine.setSize(window.innerWidth, window.innerHeight);
@@ -21,7 +56,20 @@ export function start(canvas: HTMLCanvasElement) {
   const scene = new Scene(engine);
   scene.createDefaultCameraOrLight(true, true, true);
 
-  SceneLoader.AppendAsync("/models/", "Xbot.glb").then((scene) => {});
+  fetch("/upload/zhuzi.hc")
+    .then((r) => r.text())
+    .then((r) => {
+      const object = JSON.parse(r);
+      console.log("object: ", object);
+      const blob = new Blob([object.Data], {
+        type: "text/plain",
+      });
+      const file = new File([blob], "zhuzi." + object.Type);
+      console.log("file: ", file);
+      SceneLoader.AppendAsync("file:", file).then((scene) => {});
+    });
+
+  //   SceneLoader.AppendAsync("/upload/", "zhuzi.obj").then(() => {});
 
   function render() {
     engine.runRenderLoop(() => {

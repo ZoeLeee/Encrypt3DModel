@@ -1,11 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/gob"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"hc.com/test/pkg/cors"
@@ -23,6 +32,48 @@ type ModelData struct {
 	Type string      `yaml:"Dir"`
 	Data interface{} `yaml:"data"`
 }
+
+func PKCS7Padding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
+}
+
+func PKCS7UnPadding(origData []byte) []byte {
+	length := len(origData)
+	unpadding := int(origData[length-1])
+	return origData[:(length - unpadding)]
+}
+
+//AesEncrypt 加密函数
+func AesEncrypt(plaintext []byte, key, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	blockSize := block.BlockSize()
+	plaintext = PKCS7Padding(plaintext, blockSize)
+	blockMode := cipher.NewCBCEncrypter(block, iv)
+	crypted := make([]byte, len(plaintext))
+	blockMode.CryptBlocks(crypted, plaintext)
+	return crypted, nil
+}
+
+// AesDecrypt 解密函数
+func AesDecrypt(ciphertext []byte, key, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	blockSize := block.BlockSize()
+	blockMode := cipher.NewCBCDecrypter(block, iv[:blockSize])
+	origData := make([]byte, len(ciphertext))
+	blockMode.CryptBlocks(origData, ciphertext)
+	origData = PKCS7UnPadding(origData)
+	return origData, nil
+}
+
+var key, _ = hex.DecodeString("6368616e676520746869732070617373")
 
 func main() {
 	r := gin.Default()
@@ -49,10 +100,60 @@ func main() {
 						log.Panicln("读取文件错误")
 					}
 
-					byteContainer := make([]byte, 1000000)
-					fileContent.Read(byteContainer)
-					fmt.Println(string(byteContainer))
+					var byteContainer []byte
 
+					tempBuf := make([]byte, 1024)
+					for {
+						//从file读取到buf中
+						n, err := fileContent.Read(tempBuf)
+						if err != nil && err != io.EOF {
+							fmt.Println("read buf fail", err)
+							return
+						}
+						//说明读取结束
+						if n == 0 {
+							break
+						}
+						//读取到最终的缓冲区中
+						byteContainer = append(byteContainer, tempBuf[:n]...)
+					}
+
+					content := string(byteContainer)
+
+					hc := &ModelData{
+						Type: "obj",
+						Data: content,
+					}
+
+					filename = strings.Replace(filename, ".obj", ".hc", 1)
+					log.Print(filename)
+					txt, _ := json.Marshal(hc)
+
+					var network bytes.Buffer
+					enc := gob.NewEncoder(&network)
+					err = enc.Encode(txt)
+					if err != nil {
+						log.Fatal("encode error:", err)
+					}
+
+					cb := make([]byte, aes.BlockSize+len(network.Bytes()))
+					iv := cb[:aes.BlockSize]
+
+					//加密
+					_, err = AesEncrypt(network.Bytes(), key, iv)
+					if err != nil {
+						panic(err)
+					}
+
+					err = ioutil.WriteFile(filename, txt, 0644)
+
+					if err != nil {
+						c.String(http.StatusOK, "加密失败")
+						return
+					}
+
+					c.String(http.StatusOK, "加密成功")
+					return
 				}
 
 				dir := basePath + filepath.Dir(fpath)
