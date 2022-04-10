@@ -8,18 +8,18 @@ import {
 import "@babylonjs/loaders/glTF";
 import "@babylonjs/loaders/obj";
 
-// if ("serviceWorker" in navigator) {
-//   navigator.serviceWorker
-//     .register("/sw.js")
-//     .then(function (reg) {
-//       // registration worked
-//       console.log("Registration succeeded. Scope is " + reg.scope);
-//     })
-//     .catch(function (error) {
-//       // registration failed
-//       console.log("Registration failed with " + error);
-//     });
-// }
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("./sw.js")
+    .then(function (reg) {
+      // registration worked
+      console.log("Registration succeeded. Scope is " + reg.scope);
+    })
+    .catch(function (error) {
+      // registration failed
+      console.log("Registration failed with " + error);
+    });
+}
 
 function zoomAll(scene: Scene) {
   const camera = scene.activeCamera! as ArcRotateCamera;
@@ -56,20 +56,20 @@ export function start(canvas: HTMLCanvasElement) {
   const scene = new Scene(engine);
   scene.createDefaultCameraOrLight(true, true, true);
 
-  fetch("/upload/zhuzi.hc")
-    .then((r) => r.text())
-    .then((r) => {
-      const object = JSON.parse(r);
-      console.log("object: ", object);
-      const blob = new Blob([object.Data], {
-        type: "text/plain",
+  setTimeout(() => {
+    fetch("/upload/zhuzi.hc")
+      .then((r) => r.text())
+      .then((r) => {
+        const object = JSON.parse(r);
+        console.log("object: ", object);
+        const blob = new Blob([object.Data], {
+          type: "text/plain",
+        });
+        const file = new File([blob], "zhuzi." + object.Type);
+        console.log("file: ", file);
+        SceneLoader.AppendAsync("file:", file).then((scene) => {});
       });
-      const file = new File([blob], "zhuzi." + object.Type);
-      console.log("file: ", file);
-      SceneLoader.AppendAsync("file:", file).then((scene) => {});
-    });
-
-  //   SceneLoader.AppendAsync("/upload/", "zhuzi.obj").then(() => {});
+  }, 2000);
 
   function render() {
     engine.runRenderLoop(() => {
