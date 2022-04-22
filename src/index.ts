@@ -1,5 +1,6 @@
 import { Scene, Engine, SceneLoader } from "@babylonjs/core";
-import "@babylonjs/loaders/glTF";
+// import "@babylonjs/loaders/glTF";
+import "./loaders/StepFileLoader";
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
@@ -22,7 +23,7 @@ engine.setSize(window.innerWidth, window.innerHeight);
 const scene = new Scene(engine);
 scene.createDefaultCameraOrLight(true, true, true);
 
-SceneLoader.AppendAsync("/static/models/", "Xbot.glb").then((scene) => {});
+SceneLoader.AppendAsync("/static/models/", "1.STEP").then((scene) => {});
 
 function render() {
   engine.runRenderLoop(() => {
