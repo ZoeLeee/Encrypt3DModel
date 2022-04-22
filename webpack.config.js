@@ -11,6 +11,7 @@ module.exports = {
             config: [__filename],
         },
     },
+    devtool: "source-map",
     entry: {
         index: path.resolve(__dirname, "./src/index.ts"),
         sw: path.resolve(__dirname, "./src/sw.ts"),
@@ -51,4 +52,11 @@ module.exports = {
             ],
         }),
     ],
+    devServer: {
+        static: {
+            directory: path.join(__dirname, 'public'),
+        },
+        compress: true,
+        port: 3000,
+    },
 };
