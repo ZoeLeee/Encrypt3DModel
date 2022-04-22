@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@cadexchanger/web-toolkit": "^1.2.0"
+  }
+}
