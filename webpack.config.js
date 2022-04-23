@@ -14,7 +14,7 @@ module.exports = {
     devtool: "source-map",
     entry: {
         index: path.resolve(__dirname, "./src/index.ts"),
-        sw: path.resolve(__dirname, "./src/sw.ts"),
+        // sw: path.resolve(__dirname, "./src/sw.ts"),
     },
     output: {
         path: path.resolve(__dirname, "./dist"),
