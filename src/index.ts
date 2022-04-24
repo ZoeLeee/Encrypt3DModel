@@ -35,6 +35,7 @@ const engine = new Engine(canvas);
 engine.setSize(window.innerWidth, window.innerHeight);
 
 const scene = new Scene(engine);
+scene.useRightHandedSystem = true;
 scene.createDefaultLight(true);
 
 const camera = new ArcRotateCamera(
@@ -53,35 +54,33 @@ new AxesViewer(scene);
 
 function zoomAll(s = scene) {
   // s.createDefaultCamera(true);
-  const camera = s.activeCamera as ArcRotateCamera;
+  const c = s.activeCamera as ArcRotateCamera;
   console.log("camera: ", s.activeCamera === camera);
 
   // Enable camera's behaviors
-  camera.useFramingBehavior = true;
+  c.useFramingBehavior = true;
 
-  const framingBehavior = camera.getBehaviorByName(
-    "Framing"
-  ) as FramingBehavior;
+  const framingBehavior = c.getBehaviorByName("Framing") as FramingBehavior;
   framingBehavior.framingTime = 0;
   framingBehavior.elevationReturnTime = -1;
 
   console.log("s.meshes: ", s.meshes);
   if (s.meshes.length) {
-    camera.lowerRadiusLimit = null;
+    c.lowerRadiusLimit = null;
 
     const worldExtends = s.getWorldExtends(function (mesh) {
-      return mesh.isVisible && mesh.isEnabled();
+      return mesh.isVisible && mesh.isEnabled() && mesh.name !== "cylinder";
     });
     framingBehavior.zoomOnBoundingInfo(worldExtends.min, worldExtends.max);
   }
 
   // camera.useAutoRotationBehavior = true;
-  camera.pinchPrecision = 200 / camera.radius;
-  camera.upperRadiusLimit = 10 * camera.radius;
-  camera.lowerRadiusLimit = 0;
+  c.pinchPrecision = 200 / c.radius;
+  c.upperRadiusLimit = 10 * c.radius;
+  c.lowerRadiusLimit = 0;
   // camera.wheelDeltaPercentage = 0.01;
   // camera.pinchDeltaPercentage = 0.01;
-  camera.useFramingBehavior = false;
+  c.useFramingBehavior = false;
 }
 
 window["zoomall"] = zoomAll;
@@ -120,5 +119,6 @@ window["debug"] = () => {
     globalRoot: document.getElementById("app"),
   });
 };
-debug();
+
+window["debug"]();
 render();
