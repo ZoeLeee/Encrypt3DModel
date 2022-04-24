@@ -85,7 +85,7 @@ function zoomAll(s = scene) {
 
 window["zoomall"] = zoomAll;
 
-// SceneLoader.AppendAsync("/static/models/", "1.STEP").then((scene) => {});
+SceneLoader.AppendAsync("/static/models/", "1.STEP").then((scene) => {});
 // SceneLoader.AppendAsync("/static/models/", "Xbot.glb").then((s) => {
 //   console.log("s.material: ", s.materials);
 //   s.materials.forEach(
@@ -95,16 +95,17 @@ window["zoomall"] = zoomAll;
 //     zoomAll();
 //   }, 1000);
 // });
-SceneLoader.AppendAsync("/static/models/", "AVG01.obj").then((s) => {
-  console.log("s.material: ", s.materials);
-  s.materials.forEach(
-    (m) => ((m as StandardMaterial).diffuseColor = Color3.White())
-  );
-  setTimeout(() => {
-    scene.skipFrustumClipping = true;
-    zoomAll(s);
-  }, 1000);
-});
+console.log(12);
+// SceneLoader.AppendAsync("/static/models/", "AVG01.obj").then((s) => {
+//   console.log("s.material: ", s.materials);
+//   s.materials.forEach(
+//     (m) => ((m as StandardMaterial).diffuseColor = Color3.White())
+//   );
+//   setTimeout(() => {
+//     scene.skipFrustumClipping = true;
+//     zoomAll(s);
+//   }, 1000);
+// });
 
 function render() {
   engine.runRenderLoop(() => {
