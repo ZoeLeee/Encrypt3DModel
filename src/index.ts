@@ -85,7 +85,7 @@ function zoomAll(s = scene) {
 
 window["zoomall"] = zoomAll;
 
-SceneLoader.AppendAsync("/static/models/", "1.STEP").then((scene) => {});
+SceneLoader.AppendAsync("/static/models/", "02.STEP").then((scene) => {});
 // SceneLoader.AppendAsync("/static/models/", "Xbot.glb").then((s) => {
 //   console.log("s.material: ", s.materials);
 //   s.materials.forEach(

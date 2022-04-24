@@ -35,7 +35,10 @@ export class SolidParser {
    * @param onFileToLoadFound defines a callback that will be called if a MTL file is found
    */
   static DATA_LINE = /^(#)\d+(\s)=/;
-  static VERTEX_POINT = "CARTESIAN_POINT";
+  static CART_POINT_REG = /\(\s[\d\s-].+\)/;
+  static CART_POINT = "CARTESIAN_POINT";
+  static VER_POINT = "VERTEX_POINT";
+  private pointMap = new Map<string, Vector3>();
   public parse(
     meshesNames: any,
     data: string,
@@ -45,31 +48,38 @@ export class SolidParser {
   ): void {
     // Split the file into lines
     const lines = data.split("\n");
-    console.log("lines: ", lines);
     const vectors: Vector3[] = [];
+    const getVertex: (() => Vector3)[] = [];
     for (const line of lines) {
       const matchResult = line.match(SolidParser.DATA_LINE);
       if (matchResult) {
         if (matchResult.index === 0) {
           const ID = matchResult[0].slice(0, -1);
-          if (line.includes(SolidParser.VERTEX_POINT)) {
-            const matchRes = line.match(/\(\s[\d\s].+\)/);
+          if (line.includes(SolidParser.CART_POINT)) {
+            const matchRes = line.match(SolidParser.CART_POINT_REG);
             if (matchRes) {
-              console.log("ID: ", ID);
               const points = matchRes[0]
                 .slice(2, -4)
                 .split(",")
                 .map(parseFloat);
-              console.log(points);
               vectors.push(Vector3.FromArray(points));
+              this.pointMap.set(ID.trim(), Vector3.FromArray(points));
+            }
+          } else if (line.includes(SolidParser.VER_POINT)) {
+            const matchRes = line.match(/ \(\s.+\)/);
+            if (matchRes) {
+              const points = matchRes[0].slice(3, -2).split(",");
+              const cid = points[1].trim();
+              getVertex.push(() => this.pointMap.get(cid));
             }
           }
         }
       }
     }
     const pcs = new PointsCloudSystem("pcs", 12, scene);
-    pcs.addPoints(vectors.length, function (particle, i) {
-      particle.position = vectors[i];
+    pcs.addPoints(getVertex.length, function (particle, i) {
+      particle.position = getVertex[i]();
+
       particle.color = new Color4(
         Math.random(),
         Math.random(),
