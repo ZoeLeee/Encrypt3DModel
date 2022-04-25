@@ -33,6 +33,7 @@ type SVector = [Vector3, number];
 type TOrientedEdge = [TEdge, boolean];
 type TEdgeLoop = [TOrientedEdge, TOrientedEdge, TOrientedEdge, TOrientedEdge];
 type TFaceOuterBound = [TEdgeLoop, boolean];
+type TAdFace = [TFaceOuterBound, Vector3D, boolean];
 
 /**
  * Class used to load mesh data from OBJ content
@@ -74,6 +75,7 @@ export class SolidParser {
   private FaceOuterMap = new Map<string, TFaceOuterBound>();
   private Vector3DMap = new Map<string, Vector3D>();
   private PlaneMap = new Map<string, Vector3D>();
+  private AdvFaceMap = new Map<string, TAdFace>();
   public parse(
     meshesNames: any,
     data: string,
@@ -93,6 +95,7 @@ export class SolidParser {
     const getEdgeLoop: (() => TEdgeLoop)[] = [];
     const getFaceOuterBound: (() => TFaceOuterBound)[] = [];
     const getPlane: (() => Vector3D)[] = [];
+    const getAdvFace: (() => TAdFace)[] = [];
 
     for (const line of lines) {
       const matchResult = line.match(SolidParser.DATA_LINE);
@@ -248,6 +251,21 @@ export class SolidParser {
                 return edgeloop;
               });
             }
+          } else if (line.includes(SolidParser.ADVANCED_FACE)) {
+            const matchRes = line.match(SolidParser.Data_REG);
+            if (matchRes) {
+              const points = matchRes[0].trim().slice(1, -1).split(",");
+
+              getAdvFace.push(() => {
+                const face = [
+                  this.FaceOuterMap.get(points[1].trim().slice(1, -1).trim()),
+                  this.PlaneMap.get(points[2].trim()),
+                  points[3].trim() === ".T.",
+                ] as TAdFace;
+                this.AdvFaceMap.set(ID, face);
+                return face;
+              });
+            }
           }
         }
       }
@@ -314,6 +332,9 @@ export class SolidParser {
       const t = f();
     }
     for (const f of getPlane) {
+      const t = f();
+    }
+    for (const f of getAdvFace) {
       const t = f();
       console.log("plane ", t);
     }
