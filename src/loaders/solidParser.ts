@@ -34,6 +34,7 @@ type TOrientedEdge = [TEdge, boolean];
 type TEdgeLoop = [TOrientedEdge, TOrientedEdge, TOrientedEdge, TOrientedEdge];
 type TFaceOuterBound = [TEdgeLoop, boolean];
 type TAdFace = [TFaceOuterBound, Vector3D, boolean];
+type TCloseShell = TAdFace[];
 
 /**
  * Class used to load mesh data from OBJ content
@@ -63,6 +64,7 @@ export class SolidParser {
   static AXIS2_PLACEMENT_3D = "AXIS2_PLACEMENT_3D";
   static PLANE = "PLANE";
   static ADVANCED_FACE = "ADVANCED_FACE";
+  static CLOSED_SHELL = "CLOSED_SHELL";
   private pointMap = new Map<string, Vector3>();
   private DirMap = new Map<string, Vector3>();
   private VertexPointMap = new Map<string, Vector3>();
@@ -76,6 +78,7 @@ export class SolidParser {
   private Vector3DMap = new Map<string, Vector3D>();
   private PlaneMap = new Map<string, Vector3D>();
   private AdvFaceMap = new Map<string, TAdFace>();
+  private CloseShellMap = new Map<string, TCloseShell>();
   public parse(
     meshesNames: any,
     data: string,
@@ -96,6 +99,7 @@ export class SolidParser {
     const getFaceOuterBound: (() => TFaceOuterBound)[] = [];
     const getPlane: (() => Vector3D)[] = [];
     const getAdvFace: (() => TAdFace)[] = [];
+    const getCloseShell: (() => TCloseShell)[] = [];
 
     for (const line of lines) {
       const matchResult = line.match(SolidParser.DATA_LINE);
@@ -266,6 +270,20 @@ export class SolidParser {
                 return face;
               });
             }
+          } else if (line.includes(SolidParser.CLOSED_SHELL)) {
+            const matchRes = line.match(SolidParser.ID_REG);
+            if (matchRes) {
+              const list = matchRes[0].trim().slice(1, -3).split(",");
+              console.log("list: ", list);
+
+              getCloseShell.push(() => {
+                const shells = list.map((l) => {
+                  return this.AdvFaceMap.get(l.trim());
+                });
+                this.CloseShellMap.set(ID, shells);
+                return shells;
+              });
+            }
           }
         }
       }
@@ -336,7 +354,11 @@ export class SolidParser {
     }
     for (const f of getAdvFace) {
       const t = f();
-      console.log("plane ", t);
+      // console.log("plane ", t);
+    }
+    for (const f of getCloseShell) {
+      const t = f();
+      console.log("shell ", t);
     }
     // const pcs = new PointsCloudSystem("pcs", 12, scene);
     // pcs.addPoints(getVertexPoint.length, function (particle, i) {
