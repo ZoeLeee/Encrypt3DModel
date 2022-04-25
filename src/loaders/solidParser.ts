@@ -2,6 +2,7 @@ import {
   AssetContainer,
   Color3,
   Color4,
+  Geometry,
   Material,
   Mesh,
   MeshBuilder,
@@ -12,6 +13,7 @@ import {
   StandardMaterial,
   Vector2,
   Vector3,
+  VertexBuffer,
 } from "@babylonjs/core";
 
 type MeshObject = {
@@ -65,6 +67,9 @@ export class SolidParser {
   static PLANE = "PLANE";
   static ADVANCED_FACE = "ADVANCED_FACE";
   static CLOSED_SHELL = "CLOSED_SHELL";
+  private _positions: Array<Vector3> = []; //values for the positions of vertices
+  private _normals: Array<Vector3> = []; //Values for the normals
+  private _uvs: Array<Vector2> = []; //Values for the textures
   private pointMap = new Map<string, Vector3>();
   private DirMap = new Map<string, Vector3>();
   private VertexPointMap = new Map<string, Vector3>();
@@ -289,8 +294,16 @@ export class SolidParser {
       }
     }
 
+    const vertexs: Vector3[] = [];
+    const positions: number[] = [];
+    const indices: number[] = [];
+    const normals: number[] = [];
+    const colors: number[] = [];
+    const uvs: number[] = [];
+
     for (const f of getVertexPoint) {
-      f();
+      const p = f();
+      vertexs.push(p);
     }
     for (const f of getVertex) {
       f();
@@ -322,26 +335,29 @@ export class SolidParser {
 
     for (const f of getEdgeLoop) {
       const edgeLoop = f();
-      const c = new Color3(Math.random(), Math.random(), Math.random());
-      for (const oedge of edgeLoop) {
-        const edge = oedge[0];
+      // console.log("edgeLoop: ", edgeLoop);
+      // const c = new Color3(Math.random(), Math.random(), Math.random());
+      // const allPoints: Vector3[] = [];
+      // for (const edge of edgeLoop) {
+      //   const edge = edge[0];
 
-        const line = edge[1];
+      //   // const line = edge[1];
 
-        let l = MeshBuilder.CreateLines(
-          "lines",
-          { points: [line[0], line[0].add(line[1][0].scale(line[1][1]))] },
-          scene
-        );
-        l.color = new Color3(1, 1, 1);
-
-        let lines = MeshBuilder.CreateLines(
-          "lines",
-          { points: edge[0] },
-          scene
-        );
-        lines.color = c;
-      }
+      //   // let l = MeshBuilder.CreateLines(
+      //   //   "lines",
+      //   //   { points: [line[0], line[0].add(line[1][0].scale(line[1][1]))] },
+      //   //   scene
+      //   // );
+      //   // l.color = new Color3(1, 1, 1);
+      //   allPoints.push(...edge[0]);
+      // }
+      // console.log("all", allPoints);
+      // let lines = MeshBuilder.CreateLines(
+      //   "lines",
+      //   { points: allPoints },
+      //   scene
+      // );
+      // lines.color = c;
     }
     for (const f of getFaceOuterBound) {
       const t = f();
@@ -356,21 +372,69 @@ export class SolidParser {
       const t = f();
       // console.log("plane ", t);
     }
+
+    const babylonMeshesArray: Mesh[] = [];
+    const meshObjects: MeshObject[] = [];
+
     for (const f of getCloseShell) {
       const t = f();
-      console.log("shell ", t);
-    }
-    // const pcs = new PointsCloudSystem("pcs", 12, scene);
-    // pcs.addPoints(getVertexPoint.length, function (particle, i) {
-    //   particle.position = getVertexPoint[i]();
+      console.log("t: ", t);
+      const usePts: Vector3[] = [];
 
-    //   particle.color = new Color4(
-    //     Math.random(),
-    //     Math.random(),
-    //     Math.random(),
-    //     Math.random()
-    //   );
-    // });
-    // pcs.buildMeshAsync();
+      for (const shell of t) {
+        const edgeLoop = shell[0][0];
+        const allPoints: Vector3[] = [];
+        for (const oedge of edgeLoop) {
+          const edge = oedge[0];
+          allPoints.push(...edge[0]);
+        }
+        const c = new Color3(Math.random(), Math.random(), Math.random());
+        const cache = new WeakSet();
+        for (const pt of allPoints) {
+          if (cache.has(pt)) {
+          } else {
+            usePts.push(pt);
+            positions.push(pt.x, pt.y, pt.z);
+          }
+        }
+        let lines = MeshBuilder.CreateLines(
+          "lines",
+          { points: allPoints },
+          scene
+        );
+        lines.color = c;
+      }
+
+      // meshObjects.push({
+      //   name: Geometry.RandomId(),
+      //   indices,
+      //   positions,
+      //   normals,
+      //   colors,
+      //   uvs,
+      //   materialName: "",
+      // });
+    }
+
+    const mesh = new Mesh("123", scene);
+    console.log("mesh: ", mesh);
+    mesh.setVerticesData(VertexBuffer.PositionKind, positions);
+    mesh.setVerticesData(VertexBuffer.NormalKind, normals);
+    mesh.setIndices(indices);
+    mesh.computeWorldMatrix(true);
+    const pcs = new PointsCloudSystem("pcs", 12, scene);
+    const m = MeshBuilder.CreateBox("test", { size: 10 });
+    console.log("m: ", m);
+    pcs.addPoints(getVertexPoint.length, function (particle, i) {
+      particle.position = getVertexPoint[i]();
+
+      particle.color = new Color4(
+        Math.random(),
+        Math.random(),
+        Math.random(),
+        Math.random()
+      );
+    });
+    pcs.buildMeshAsync();
   }
 }

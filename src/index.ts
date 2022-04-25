@@ -50,7 +50,7 @@ camera.minZ = 0.1;
 camera.maxZ = 1e7;
 camera.attachControl();
 
-new AxesViewer(scene);
+new AxesViewer(scene, 10);
 
 function zoomAll(s = scene) {
   // s.createDefaultCamera(true);
