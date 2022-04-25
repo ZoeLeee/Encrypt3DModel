@@ -25,8 +25,9 @@ type MeshObject = {
   directMaterial?: Nullable<Material>;
 };
 
-type EdgeVector = [Vector3, Vector3];
+type Vector2D = [Vector3, Vector3];
 type LineVector = [Vector3, SVector];
+type TEdge = [Vector2D, LineVector];
 type SVector = [Vector3, number];
 
 /**
@@ -54,7 +55,7 @@ export class SolidParser {
   private DirMap = new Map<string, Vector3>();
   private VertexPointMap = new Map<string, Vector3>();
   private VectorMap = new Map<string, SVector>();
-  private EdgeMap = new Map<string, EdgeVector>();
+  private EdgeMap = new Map<string, TEdge>();
   //法线
   private LineMap = new Map<string, LineVector>();
   public parse(
@@ -69,7 +70,7 @@ export class SolidParser {
     const vectors: Vector3[] = [];
     const getVertex: (() => SVector)[] = [];
     const getVertexPoint: (() => Vector3)[] = [];
-    const getEdgeCurves: (() => EdgeVector)[] = [];
+    const getEdgeCurves: (() => TEdge)[] = [];
     const getLineCurves: (() => LineVector)[] = [];
 
     for (const line of lines) {
@@ -130,10 +131,12 @@ export class SolidParser {
               const points = matchRes[0].trim().slice(1, -1).split(",");
 
               getEdgeCurves.push(() => {
-                const edge = [
+                const v2d = [
                   this.VertexPointMap.get(points[1].trim()),
                   this.VertexPointMap.get(points[2].trim()),
-                ] as EdgeVector;
+                ] as Vector2D;
+
+                const edge = [v2d, this.LineMap.get(points[3].trim())] as TEdge;
                 this.EdgeMap.set(ID, edge);
                 return edge;
               });
@@ -166,14 +169,7 @@ export class SolidParser {
     }
 
     for (const f of getLineCurves) {
-      const line = f();
-      console.log("line: ", line);
-      let lines = MeshBuilder.CreateLines(
-        "lines",
-        { points: [line[0], line[0].add(line[1][0].scale(line[1][1]))] },
-        scene
-      );
-      lines.color = new Color3(1, 1, 1);
+      f();
     }
 
     console.log(this.VertexPointMap);
@@ -181,7 +177,16 @@ export class SolidParser {
       const edge = fv();
       console.log("edge: ", edge);
 
-      let lines = MeshBuilder.CreateLines("lines", { points: edge }, scene);
+      const line = edge[1];
+
+      let l = MeshBuilder.CreateLines(
+        "lines",
+        { points: [line[0], line[0].add(line[1][0].scale(line[1][1]))] },
+        scene
+      );
+      l.color = new Color3(1, 1, 1);
+
+      let lines = MeshBuilder.CreateLines("lines", { points: edge[0] }, scene);
       lines.color = new Color3(Math.random(), Math.random(), Math.random());
     }
 
