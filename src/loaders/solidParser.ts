@@ -26,9 +26,13 @@ type MeshObject = {
 };
 
 type Vector2D = [Vector3, Vector3];
+type Vector3D = [Vector3, Vector3, Vector3];
 type LineVector = [Vector3, SVector];
 type TEdge = [Vector2D, LineVector];
 type SVector = [Vector3, number];
+type TOrientedEdge = [TEdge, boolean];
+type TEdgeLoop = [TOrientedEdge, TOrientedEdge, TOrientedEdge, TOrientedEdge];
+type TFaceOuterBound = [TEdgeLoop, boolean];
 
 /**
  * Class used to load mesh data from OBJ content
@@ -45,12 +49,19 @@ export class SolidParser {
   static DATA_LINE = /^(#)\d+(\s)=/;
   static CART_POINT_REG = /\(\s[\d\s-].+\)/;
   static Data_REG = /\(\s.+\)/;
+  static ID_REG = /\(\s[\d\s#].+\)/;
   static CART_POINT = "CARTESIAN_POINT";
   static VER_POINT = "VERTEX_POINT";
   static VECTOR = "VECTOR";
   static EDGE_CURVE = "EDGE_CURVE";
   static LINE = "LINE";
   static DIRECTION = "DIRECTION";
+  static ORIENTED_EDGE = "ORIENTED_EDGE";
+  static EDGE_LOOP = "EDGE_LOOP";
+  static FACE_OUTER_BOUND = "FACE_OUTER_BOUND";
+  static AXIS2_PLACEMENT_3D = "AXIS2_PLACEMENT_3D";
+  static PLANE = "PLANE";
+  static ADVANCED_FACE = "ADVANCED_FACE";
   private pointMap = new Map<string, Vector3>();
   private DirMap = new Map<string, Vector3>();
   private VertexPointMap = new Map<string, Vector3>();
@@ -58,6 +69,11 @@ export class SolidParser {
   private EdgeMap = new Map<string, TEdge>();
   //法线
   private LineMap = new Map<string, LineVector>();
+  private OrientedEdgeMap = new Map<string, TOrientedEdge>();
+  private EdgeLoopMap = new Map<string, TEdgeLoop>();
+  private FaceOuterMap = new Map<string, TFaceOuterBound>();
+  private Vector3DMap = new Map<string, Vector3D>();
+  private PlaneMap = new Map<string, Vector3D>();
   public parse(
     meshesNames: any,
     data: string,
@@ -70,13 +86,19 @@ export class SolidParser {
     const vectors: Vector3[] = [];
     const getVertex: (() => SVector)[] = [];
     const getVertexPoint: (() => Vector3)[] = [];
+    const getVector3D: (() => Vector3D)[] = [];
     const getEdgeCurves: (() => TEdge)[] = [];
     const getLineCurves: (() => LineVector)[] = [];
+    const getOrientedEdge: (() => TOrientedEdge)[] = [];
+    const getEdgeLoop: (() => TEdgeLoop)[] = [];
+    const getFaceOuterBound: (() => TFaceOuterBound)[] = [];
+    const getPlane: (() => Vector3D)[] = [];
 
     for (const line of lines) {
       const matchResult = line.match(SolidParser.DATA_LINE);
       if (matchResult) {
         if (matchResult.index === 0) {
+          const startIndex = matchResult[0].length;
           const ID = matchResult[0].slice(0, -1).trim();
           if (line.includes(SolidParser.CART_POINT)) {
             const matchRes = line.match(SolidParser.CART_POINT_REG);
@@ -92,7 +114,7 @@ export class SolidParser {
             const matchRes = line.match(SolidParser.CART_POINT_REG);
             if (matchRes) {
               const dir = matchRes[0].trim().slice(1, -1).split(",");
-              console.log("dir: ", dir);
+
               this.DirMap.set(
                 ID,
                 new Vector3(
@@ -110,6 +132,33 @@ export class SolidParser {
               getVertexPoint.push(() => {
                 const p = this.pointMap.get(cid);
                 this.VertexPointMap.set(ID, p);
+                return p;
+              });
+            }
+          } else if (line.includes(SolidParser.AXIS2_PLACEMENT_3D)) {
+            const matchRes = line.match(SolidParser.Data_REG);
+            if (matchRes) {
+              const points = matchRes[0].slice(3, -2).split(",");
+
+              getVector3D.push(() => {
+                const ps = [
+                  this.pointMap.get(points[1].trim()),
+                  this.DirMap.get(points[2].trim()),
+                  this.DirMap.get(points[3].trim()),
+                ] as Vector3D;
+                this.Vector3DMap.set(ID, ps);
+                return ps;
+              });
+            }
+          } else if (line.indexOf(SolidParser.PLANE) === startIndex + 1) {
+            const matchRes = line.match(SolidParser.Data_REG);
+            if (matchRes) {
+              const points = matchRes[0].slice(3, -2).split(",");
+              console.log("points: ", points);
+
+              getPlane.push(() => {
+                const p = this.Vector3DMap.get(points[1].trim());
+                this.PlaneMap.set(ID, p);
                 return p;
               });
             }
@@ -145,7 +194,6 @@ export class SolidParser {
             const matchRes = line.match(SolidParser.Data_REG);
             if (matchRes) {
               const points = matchRes[0].trim().slice(1, -1).split(",");
-              console.log("points: ", points);
 
               getLineCurves.push(() => {
                 const line = [
@@ -154,6 +202,50 @@ export class SolidParser {
                 ] as LineVector;
                 this.LineMap.set(ID, line);
                 return line;
+              });
+            }
+          } else if (line.includes(SolidParser.ORIENTED_EDGE)) {
+            const matchRes = line.match(SolidParser.Data_REG);
+            if (matchRes) {
+              const points = matchRes[0].trim().slice(1, -1).split(",");
+
+              getOrientedEdge.push(() => {
+                const edge = [
+                  this.EdgeMap.get(points[3].trim()),
+                  points[4].trim() === ".T.",
+                ] as TOrientedEdge;
+                this.OrientedEdgeMap.set(ID, edge);
+                return edge;
+              });
+            }
+          } else if (line.includes(SolidParser.EDGE_LOOP)) {
+            const matchRes = line.match(SolidParser.ID_REG);
+            if (matchRes) {
+              const points = matchRes[0].trim().slice(1, -3).split(",");
+
+              getEdgeLoop.push(() => {
+                const edgeloop = [
+                  this.OrientedEdgeMap.get(points[0].trim()),
+                  this.OrientedEdgeMap.get(points[1].trim()),
+                  this.OrientedEdgeMap.get(points[2].trim()),
+                  this.OrientedEdgeMap.get(points[3].trim()),
+                ] as TEdgeLoop;
+                this.EdgeLoopMap.set(ID, edgeloop);
+                return edgeloop;
+              });
+            }
+          } else if (line.includes(SolidParser.FACE_OUTER_BOUND)) {
+            const matchRes = line.match(SolidParser.Data_REG);
+            if (matchRes) {
+              const points = matchRes[0].trim().slice(1, -1).split(",");
+
+              getFaceOuterBound.push(() => {
+                const edgeloop = [
+                  this.EdgeLoopMap.get(points[1].trim()),
+                  points[2].trim() === ".T.",
+                ] as TFaceOuterBound;
+                this.FaceOuterMap.set(ID, edgeloop);
+                return edgeloop;
               });
             }
           }
@@ -172,37 +264,70 @@ export class SolidParser {
       f();
     }
 
-    console.log(this.VertexPointMap);
     for (const fv of getEdgeCurves) {
       const edge = fv();
-      console.log("edge: ", edge);
 
-      const line = edge[1];
+      // const line = edge[1];
 
-      let l = MeshBuilder.CreateLines(
-        "lines",
-        { points: [line[0], line[0].add(line[1][0].scale(line[1][1]))] },
-        scene
-      );
-      l.color = new Color3(1, 1, 1);
+      // let l = MeshBuilder.CreateLines(
+      //   "lines",
+      //   { points: [line[0], line[0].add(line[1][0].scale(line[1][1]))] },
+      //   scene
+      // );
+      // l.color = new Color3(1, 1, 1);
 
-      let lines = MeshBuilder.CreateLines("lines", { points: edge[0] }, scene);
-      lines.color = new Color3(Math.random(), Math.random(), Math.random());
+      // let lines = MeshBuilder.CreateLines("lines", { points: edge[0] }, scene);
+      // lines.color = new Color3(Math.random(), Math.random(), Math.random());
     }
 
-    console.log(this.EdgeMap);
+    for (const f of getOrientedEdge) {
+      const t = f();
+    }
 
-    const pcs = new PointsCloudSystem("pcs", 12, scene);
-    pcs.addPoints(getVertexPoint.length, function (particle, i) {
-      particle.position = getVertexPoint[i]();
+    for (const f of getEdgeLoop) {
+      const edgeLoop = f();
+      const c = new Color3(Math.random(), Math.random(), Math.random());
+      for (const oedge of edgeLoop) {
+        const edge = oedge[0];
 
-      particle.color = new Color4(
-        Math.random(),
-        Math.random(),
-        Math.random(),
-        Math.random()
-      );
-    });
-    pcs.buildMeshAsync();
+        const line = edge[1];
+
+        let l = MeshBuilder.CreateLines(
+          "lines",
+          { points: [line[0], line[0].add(line[1][0].scale(line[1][1]))] },
+          scene
+        );
+        l.color = new Color3(1, 1, 1);
+
+        let lines = MeshBuilder.CreateLines(
+          "lines",
+          { points: edge[0] },
+          scene
+        );
+        lines.color = c;
+      }
+    }
+    for (const f of getFaceOuterBound) {
+      const t = f();
+    }
+    for (const f of getVector3D) {
+      const t = f();
+    }
+    for (const f of getPlane) {
+      const t = f();
+      console.log("plane ", t);
+    }
+    // const pcs = new PointsCloudSystem("pcs", 12, scene);
+    // pcs.addPoints(getVertexPoint.length, function (particle, i) {
+    //   particle.position = getVertexPoint[i]();
+
+    //   particle.color = new Color4(
+    //     Math.random(),
+    //     Math.random(),
+    //     Math.random(),
+    //     Math.random()
+    //   );
+    // });
+    // pcs.buildMeshAsync();
   }
 }
