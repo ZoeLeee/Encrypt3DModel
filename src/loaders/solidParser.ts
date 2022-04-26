@@ -33,7 +33,7 @@ type LineVector = [Vector3, SVector];
 type TEdge = [Vector2D, LineVector];
 type SVector = [Vector3, number];
 type TOrientedEdge = [TEdge, boolean];
-type TEdgeLoop = [TOrientedEdge, TOrientedEdge, TOrientedEdge, TOrientedEdge];
+type TEdgeLoop = TOrientedEdge[];
 type TFaceOuterBound = [TEdgeLoop, boolean];
 type TAdFace = [TFaceOuterBound, Vector3D, boolean];
 type TCloseShell = TAdFace[];
@@ -234,14 +234,12 @@ export class SolidParser {
             const matchRes = line.match(SolidParser.ID_REG);
             if (matchRes) {
               const points = matchRes[0].trim().slice(1, -3).split(",");
+              console.log("EDGE_LOOP: ", points);
 
               getEdgeLoop.push(() => {
-                const edgeloop = [
-                  this.OrientedEdgeMap.get(points[0].trim()),
-                  this.OrientedEdgeMap.get(points[1].trim()),
-                  this.OrientedEdgeMap.get(points[2].trim()),
-                  this.OrientedEdgeMap.get(points[3].trim()),
-                ] as TEdgeLoop;
+                const edgeloop = points.map((p) =>
+                  this.OrientedEdgeMap.get(p.trim())
+                ) as TEdgeLoop;
                 this.EdgeLoopMap.set(ID, edgeloop);
                 return edgeloop;
               });
@@ -316,7 +314,7 @@ export class SolidParser {
     for (const fv of getEdgeCurves) {
       const edge = fv();
 
-      // const line = edge[1];
+      const line = edge[1];
 
       // let l = MeshBuilder.CreateLines(
       //   "lines",
@@ -325,8 +323,8 @@ export class SolidParser {
       // );
       // l.color = new Color3(1, 1, 1);
 
-      // let lines = MeshBuilder.CreateLines("lines", { points: edge[0] }, scene);
-      // lines.color = new Color3(Math.random(), Math.random(), Math.random());
+      let lines = MeshBuilder.CreateLines("lines", { points: edge[0] }, scene);
+      lines.color = new Color3(Math.random(), Math.random(), Math.random());
     }
 
     for (const f of getOrientedEdge) {
@@ -375,7 +373,7 @@ export class SolidParser {
 
     const babylonMeshesArray: Mesh[] = [];
     const meshObjects: MeshObject[] = [];
-
+    let index = 0;
     for (const f of getCloseShell) {
       const t = f();
       console.log("t: ", t);
@@ -389,20 +387,29 @@ export class SolidParser {
           allPoints.push(...edge[0]);
         }
         const c = new Color3(Math.random(), Math.random(), Math.random());
-        const cache = new WeakSet();
-        for (const pt of allPoints) {
-          if (cache.has(pt)) {
-          } else {
-            usePts.push(pt);
-            positions.push(pt.x, pt.y, pt.z);
-          }
+
+        const uniPoints = Array.from(new Set([...allPoints]));
+        console.log("uniPoints: ", uniPoints);
+        let dir = shell[1][1];
+        for (const pt of uniPoints) {
+          positions.push(pt.x, pt.y, pt.z);
+          normals.push(dir.x, dir.y, dir.z);
         }
-        let lines = MeshBuilder.CreateLines(
-          "lines",
-          { points: allPoints },
-          scene
-        );
-        lines.color = c;
+        for (const pt of allPoints) {
+          const i = uniPoints.indexOf(pt);
+          indices.push(i + index);
+        }
+        index = uniPoints.length;
+        // if (uniPoints.length > 4) {
+        //   let lines = MeshBuilder.CreateLines(
+        //     "lines",
+        //     { points: allPoints },
+        //     scene
+        //   );
+        //   lines.color = c;
+        // }
+
+        // break;
       }
 
       // meshObjects.push({
@@ -416,15 +423,18 @@ export class SolidParser {
       // });
     }
 
-    const mesh = new Mesh("123", scene);
-    console.log("mesh: ", mesh);
-    mesh.setVerticesData(VertexBuffer.PositionKind, positions);
-    mesh.setVerticesData(VertexBuffer.NormalKind, normals);
-    mesh.setIndices(indices);
-    mesh.computeWorldMatrix(true);
-    const pcs = new PointsCloudSystem("pcs", 12, scene);
-    const m = MeshBuilder.CreateBox("test", { size: 10 });
-    console.log("m: ", m);
+    // const mesh = new Mesh("123", scene);
+    // console.log("mesh: ", mesh);
+    // mesh.setVerticesData(VertexBuffer.PositionKind, positions);
+    // console.log("positions: ", positions);
+    // console.log("normals: ", normals);
+    // mesh.setVerticesData(VertexBuffer.NormalKind, normals);
+    // console.log("indices: ", indices);
+    // mesh.setIndices([1, 0, 3, 3, 2, 1]);
+    // mesh.computeWorldMatrix(true);
+    // const pcs = new PointsCloudSystem("pcs", 12, scene);
+    // const m = MeshBuilder.CreateBox("test", { size: 10 });
+    // console.log("box: ", m);
     pcs.addPoints(getVertexPoint.length, function (particle, i) {
       particle.position = getVertexPoint[i]();
 
