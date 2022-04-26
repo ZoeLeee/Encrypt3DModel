@@ -35,7 +35,7 @@ type SVector = [Vector3, number];
 type TOrientedEdge = [TEdge, boolean];
 type TEdgeLoop = TOrientedEdge[];
 type TFaceOuterBound = [TEdgeLoop, boolean];
-type TAdFace = [TFaceOuterBound, Vector3D, boolean];
+type TAdFace = [TFaceOuterBound[], Vector3D, boolean];
 type TCloseShell = TAdFace[];
 
 /**
@@ -63,6 +63,7 @@ export class SolidParser {
   static ORIENTED_EDGE = "ORIENTED_EDGE";
   static EDGE_LOOP = "EDGE_LOOP";
   static FACE_OUTER_BOUND = "FACE_OUTER_BOUND";
+  static FACE_BOUND = "FACE_BOUND";
   static AXIS2_PLACEMENT_3D = "AXIS2_PLACEMENT_3D";
   static PLANE = "PLANE";
   static ADVANCED_FACE = "ADVANCED_FACE";
@@ -166,7 +167,6 @@ export class SolidParser {
             const matchRes = line.match(SolidParser.Data_REG);
             if (matchRes) {
               const points = matchRes[0].slice(3, -2).split(",");
-              console.log("points: ", points);
 
               getPlane.push(() => {
                 const p = this.Vector3DMap.get(points[1].trim());
@@ -234,7 +234,6 @@ export class SolidParser {
             const matchRes = line.match(SolidParser.ID_REG);
             if (matchRes) {
               const points = matchRes[0].trim().slice(1, -3).split(",");
-              console.log("EDGE_LOOP: ", points);
 
               getEdgeLoop.push(() => {
                 const edgeloop = points.map((p) =>
@@ -244,7 +243,10 @@ export class SolidParser {
                 return edgeloop;
               });
             }
-          } else if (line.includes(SolidParser.FACE_OUTER_BOUND)) {
+          } else if (
+            line.includes(SolidParser.FACE_OUTER_BOUND) ||
+            line.includes(SolidParser.FACE_BOUND)
+          ) {
             const matchRes = line.match(SolidParser.Data_REG);
             if (matchRes) {
               const points = matchRes[0].trim().slice(1, -1).split(",");
@@ -261,14 +263,22 @@ export class SolidParser {
           } else if (line.includes(SolidParser.ADVANCED_FACE)) {
             const matchRes = line.match(SolidParser.Data_REG);
             if (matchRes) {
-              const points = matchRes[0].trim().slice(1, -1).split(",");
+              let str = matchRes[0].trim().slice(1, -1);
+
+              const facesRest = str.match(SolidParser.Data_REG);
+              if (!facesRest) continue;
+
+              const temp = str.split("),")[1].split(",");
+
+              const faces = facesRest[0].trim().slice(1, -1).split(",");
 
               getAdvFace.push(() => {
                 const face = [
-                  this.FaceOuterMap.get(points[1].trim().slice(1, -1).trim()),
-                  this.PlaneMap.get(points[2].trim()),
-                  points[3].trim() === ".T.",
+                  faces.map((f) => this.FaceOuterMap.get(f.trim())),
+                  this.PlaneMap.get(temp[0].trim()),
+                  temp[1].trim() === ".T.",
                 ] as TAdFace;
+                console.log("face: ", face);
                 this.AdvFaceMap.set(ID, face);
                 return face;
               });
@@ -323,8 +333,8 @@ export class SolidParser {
       // );
       // l.color = new Color3(1, 1, 1);
 
-      let lines = MeshBuilder.CreateLines("lines", { points: edge[0] }, scene);
-      lines.color = new Color3(Math.random(), Math.random(), Math.random());
+      // let lines = MeshBuilder.CreateLines("lines", { points: edge[0] }, scene);
+      // lines.color = new Color3(Math.random(), Math.random(), Math.random());
     }
 
     for (const f of getOrientedEdge) {
@@ -380,36 +390,40 @@ export class SolidParser {
       const usePts: Vector3[] = [];
 
       for (const shell of t) {
-        const edgeLoop = shell[0][0];
-        const allPoints: Vector3[] = [];
-        for (const oedge of edgeLoop) {
-          const edge = oedge[0];
-          allPoints.push(...edge[0]);
-        }
-        const c = new Color3(Math.random(), Math.random(), Math.random());
+        if (!shell[0]) continue;
+        for (const edgeLoop of shell[0]) {
+          const allPoints: Vector3[] = [];
+          for (const oedge of edgeLoop[0]) {
+            const edge = oedge[0];
+            if (edge) allPoints.push(...edge[0]);
+            else {
+              console.log(edge);
+            }
+          }
+          const c = new Color3(Math.random(), Math.random(), Math.random());
 
-        const uniPoints = Array.from(new Set([...allPoints]));
-        console.log("uniPoints: ", uniPoints);
-        let dir = shell[1][1];
-        for (const pt of uniPoints) {
-          positions.push(pt.x, pt.y, pt.z);
-          normals.push(dir.x, dir.y, dir.z);
-        }
-        for (const pt of allPoints) {
-          const i = uniPoints.indexOf(pt);
-          indices.push(i + index);
-        }
-        index = uniPoints.length;
-        // if (uniPoints.length > 4) {
-        //   let lines = MeshBuilder.CreateLines(
-        //     "lines",
-        //     { points: allPoints },
-        //     scene
-        //   );
-        //   lines.color = c;
-        // }
+          const uniPoints = Array.from(new Set([...allPoints]));
+          console.log("uniPoints: ", uniPoints);
+          let dir = shell[1][1];
+          for (const pt of uniPoints) {
+            positions.push(pt.x, pt.y, pt.z);
+            normals.push(dir.x, dir.y, dir.z);
+          }
+          for (const pt of allPoints) {
+            const i = uniPoints.indexOf(pt);
+            indices.push(i + index);
+          }
+          index = uniPoints.length;
 
-        // break;
+          let lines = MeshBuilder.CreateLines(
+            "lines",
+            { points: uniPoints },
+            scene
+          );
+          lines.color = c;
+
+          // break;
+        }
       }
 
       // meshObjects.push({
@@ -432,7 +446,7 @@ export class SolidParser {
     // console.log("indices: ", indices);
     // mesh.setIndices([1, 0, 3, 3, 2, 1]);
     // mesh.computeWorldMatrix(true);
-    // const pcs = new PointsCloudSystem("pcs", 12, scene);
+    const pcs = new PointsCloudSystem("pcs", 12, scene);
     // const m = MeshBuilder.CreateBox("test", { size: 10 });
     // console.log("box: ", m);
     pcs.addPoints(getVertexPoint.length, function (particle, i) {
