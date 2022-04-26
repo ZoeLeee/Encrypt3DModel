@@ -415,13 +415,25 @@ export class SolidParser {
           }
           index = uniPoints.length;
 
-          let lines = MeshBuilder.CreateLines(
-            "lines",
-            { points: uniPoints },
-            scene
-          );
-          lines.color = c;
-
+          // let lines = MeshBuilder.CreateLines(
+          //   "lines",
+          //   { points: uniPoints },
+          //   scene
+          // );
+          // lines.color = c;
+          for (const oedge of edgeLoop[0]) {
+            const edge = oedge[0];
+            if (edge) {
+              let lines = MeshBuilder.CreateLines(
+                "lines",
+                { points: edge[0] },
+                scene
+              );
+              lines.color = c;
+            } else {
+              console.log(edge);
+            }
+          }
           // break;
         }
       }
